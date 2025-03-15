@@ -49,3 +49,20 @@
 
 ## **🎨 Frontend**
 - **React.js with Next.js** for a **responsive UI**.
+
+  ---
+  ## Working 
+
+First FrountEnd.
+
+```bash
+cd .\Document_clustering_and_summarization_website\
+cd .\website_doc_clustering\
+npm install
+npm start
+```
+
+BackEnd
+```bash
+Python server.py
+```
