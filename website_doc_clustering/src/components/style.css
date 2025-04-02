@@ -1,23 +1,22 @@
 .progress-bar {
-    width: 80%;
-    height: 20px;
-    background: #ddd;
-    border-radius: 10px;
-    overflow: hidden;
-    margin: 10px auto;
-  }
-  
-  .progress-fill {
-    height: 100%;
-    background: #4caf50;
-    transition: width 0.5s;
-  }
-  
-  .output-container {
-    padding: 20px;
-    border: 1px solid #ddd;
-    margin-top: 20px;
-    text-align: left;
-    background: #f9f9f9;
-  }
-  
+  width: 80%;
+  height: 20px;
+  background: #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px auto;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4caf50;
+  transition: width 0.5s;
+}
+
+.output-container {
+  padding: 20px;
+  border: 1px solid #ddd;
+  margin-top: 20px;
+  text-align: left;
+  background: #f9f9f9;
+}
