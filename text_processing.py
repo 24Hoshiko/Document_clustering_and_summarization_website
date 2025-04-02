@@ -8,22 +8,25 @@ import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+import logging
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
 
+# Suppress pdfplumber CropBox warnings at the start
+logging.getLogger("pdfplumber").setLevel(logging.CRITICAL)
+
 # Ensure NLTK dependencies are downloaded
-nltk.download("punkt")
-nltk.download("stopwords")
-nltk.download("wordnet")
+nltk.download("punkt", quiet=True)
+nltk.download("stopwords", quiet=True)
+nltk.download("wordnet", quiet=True)
 
 # Input and output directories
 INPUT_FOLDER = "uploaded_docs"
 CLUSTERED_FOLDER = "clustered_docs"
 
 os.makedirs(CLUSTERED_FOLDER, exist_ok=True)  # Ensure output folder exists
-
 
 # -------------------- FILE EXTRACTION FUNCTIONS --------------------
 
@@ -37,7 +40,9 @@ def read_pdf(file_path):
     text = ""
     with pdfplumber.open(file_path) as pdf:
         for page in pdf.pages:
-            text += page.extract_text() + "\n"
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
     return text.strip()
 
 def read_txt(file_path):
@@ -55,8 +60,6 @@ def extract_text(file_path):
         return read_txt(file_path)
     else:
         return None  # Unsupported file format
-    
-
 
 # -------------------- TEXT PREPROCESSING FUNCTIONS --------------------
 
@@ -86,8 +89,6 @@ def preprocess_text(text):
     tokens = lemmatize_tokens(tokens)
     return " ".join(tokens)  # Convert back to a string
 
-
-
 # -------------------- DOCUMENT LOADING --------------------
 
 def load_documents(folder_path):
@@ -105,13 +106,10 @@ def load_documents(folder_path):
 
     return documents, filenames
 
-
-
 # -------------------- CLUSTERING AND FILE ORGANIZATION --------------------
 
 def cluster_documents(documents, filenames, num_clusters=2):
     """Cluster documents using K-Means and organize them into folders."""
-    
     if not documents:
         print("No valid documents found for clustering.")
         return
@@ -139,18 +137,20 @@ def cluster_documents(documents, filenames, num_clusters=2):
         cluster_folder = os.path.join(CLUSTERED_FOLDER, cluster_names[cluster_id])
         os.makedirs(cluster_folder, exist_ok=True)
 
-        # Move the file to the appropriate cluster folder
-        shutil.move(os.path.join(INPUT_FOLDER, filename), os.path.join(cluster_folder, filename))
+        # Copy the file to the appropriate cluster folder (instead of moving)
+        shutil.copy(os.path.join(INPUT_FOLDER, filename), os.path.join(cluster_folder, filename))
 
     print(f"Documents clustered into {len(cluster_names)} categories successfully!")
-
-    
 
 # -------------------- PROGRAM EXECUTION --------------------
 
 if __name__ == "__main__":
     print("Loading and processing documents...")
     documents, filenames = load_documents(INPUT_FOLDER)
-
-    print(f"Found {len(documents)} documents. Clustering now...")
-    cluster_documents(documents, filenames, num_clusters=2)
+    print(f"Found {len(documents)} documents: {filenames}")
+    if not documents:
+        print("No documents to cluster. Exiting.")
+    else:
+        print(f"Clustering {len(documents)} documents...")
+        cluster_documents(documents, filenames, num_clusters=2)
+        print("Clustering completed. Check clustered_docs folder.")

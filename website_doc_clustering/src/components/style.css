@@ -1,22 +1,427 @@
-.progress-bar {
-  width: 80%;
-  height: 20px;
-  background: #ddd;
-  border-radius: 10px;
-  overflow: hidden;
-  margin: 10px auto;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #4caf50;
-  transition: width 0.5s;
-}
-
-.output-container {
-  padding: 20px;
-  border: 1px solid #ddd;
-  margin-top: 20px;
-  text-align: left;
-  background: #f9f9f9;
-}
+/* General Reset and Typography */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+  
+  body {
+    background-color: #f4f7fa;
+    color: #2d3748;
+    font-size: 16px; /* Added base font size for better scaling */
+    line-height: 1.5; /* Improved readability */
+  }
+  
+  /* Progress Bar */
+  .progress-bar {
+    width: 90%;
+    max-width: 1000px;
+    height: 15px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 20px auto;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: #48bb78;
+    transition: width 0.5s ease-in-out;
+  }
+  
+  /* Output Container */
+  .output-container {
+    max-width: 1600px;
+    margin: 30px auto;
+    padding: 25px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease;
+  }
+  
+  .output-container:hover {
+    transform: translateY(-2px);
+  }
+  
+  .output-container h4 {
+    font-size: 1.75rem; /* Increased for better hierarchy */
+    font-weight: 600; /* Added weight for emphasis */
+    color: #2d3748;
+    margin-bottom: 15px;
+    text-align: center;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 8px;
+  }
+  
+  /* Text Container */
+  .text-container {
+    max-width: 1800px;
+    max-height: 560px;
+    margin: 0 auto;
+    overflow-y: auto;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .text-container:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .text-container pre {
+    margin: 0;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 16px; /* Increased for better readability */
+    font-weight: 400; /* Normal weight for better legibility */
+    line-height: 1.8; /* Increased for better readability */
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: #2d3748;
+    text-align: left;
+  }
+  
+  /* Custom Scrollbar for Text Container */
+  .text-container::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .text-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+  
+  .text-container::-webkit-scrollbar-thumb {
+    background: #a0aec0;
+    border-radius: 4px;
+  }
+  
+  .text-container::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+  }
+  
+  /* Clusters Container */
+  .clusters-container {
+    min-height: 8vh;
+    width: 95vw;
+    max-width: 1100px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #f4f7fa 0%, #e2e8f0 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 auto;
+  }
+  
+  .clusters-container h2 {
+    font-size: 1.75rem; /* Increased for better hierarchy */
+    font-weight: 700; /* Bolder for emphasis */
+    color: #2d3748;
+    text-align: center;
+    margin-bottom: 40px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  
+  .cluster-section {
+    width: 100%;
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease;
+  }
+  
+  .cluster-section:hover {
+    transform: translateY(-3px);
+  }
+  
+  .cluster-section h3 {
+    font-size: 2rem; /* Increased for better hierarchy */
+    font-weight: 600; /* Added weight for emphasis */
+    color: #2d3748;
+    margin-bottom: 15px;
+    border-left: 4px solid #4299e1;
+    padding-left: 10px;
+    text-align: left;
+  }
+  
+  .file-list {
+    list-style: none;
+    margin-bottom: 20px;
+    padding: 0;
+  }
+  
+  .file-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #e2e8f0;
+    transition: background 0.2s ease;
+  }
+  
+  .file-item:last-child {
+    border-bottom: none;
+  }
+  
+  .file-link {
+    color: #4299e1;
+    text-decoration: none;
+    font-size: 1.25rem; /* Increased for better readability */
+    font-weight: 500; /* Medium weight for better emphasis */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    padding: 5px 10px;
+  }
+  
+  .file-link:hover {
+    color: #2b6cb0;
+    text-decoration: underline;
+    background: #f1f5f9;
+  }
+  
+  .error-message {
+    color: #e53e3e;
+    text-align: center;
+    font-size: 1.25rem; /* Increased for better visibility */
+    font-weight: 500; /* Medium weight for emphasis */
+    margin: 20px 0;
+    background: #fff5f5;
+    padding: 10px;
+    border-radius: 5px;
+    max-width: 1000px;
+    width: 100%;
+  }
+  
+  /* Summarize Button */
+  .summarize-btn {
+    display: block;
+    margin: 20px auto;
+    padding: 14px 30px; /* Increased padding for larger button */
+    background-color: #4299e1;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1rem; /* Increased font size */
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+  }
+  
+  .summarize-btn:hover {
+    background-color: #2b6cb0;
+    transform: scale(1.02);
+  }
+  
+  .summarize-btn:active {
+    transform: scale(0.98);
+  }
+  
+  /* Text View Container */
+  .text-view-container {
+    min-height: 80vh;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #f4f7fa 0%, #e2e8f0 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .text-view-container h2 {
+    font-size: 1.75rem; /* Increased for better hierarchy */
+    font-weight: 700; /* Bolder for emphasis */
+    color: #2d3748;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+  
+  .text-view-container button {
+    margin-top: 30px;
+    padding: 14px 30px; /* Increased padding for larger button */
+    background-color: #4299e1;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1rem; /* Increased font size */
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+  }
+  
+  .text-view-container button:hover {
+    background-color: #2b6cb0;
+    transform: scale(1.02);
+  }
+  
+  .text-view-container button:active {
+    transform: scale(0.98);
+  }
+  
+  /* Upload Container */
+  .upload-container {
+    min-height: 50vh;
+    min-width: 50vh;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #f4f7fa 0%, #e2e8f0 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .upload-container h2 {
+    font-size: 1.75rem; /* Increased for better hierarchy */
+    font-weight: 700; /* Bolder for emphasis */
+    color: #2d3748;
+    margin-bottom: 40px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+  
+  .input-wrapper {
+    margin-bottom: 30px;
+    width: 100%;
+    max-width: 1000px;
+    text-align: center;
+  }
+  
+  .file-input {
+    display: block;
+    margin: 0 auto;
+    padding: 10px;
+    font-size: 1.1rem; /* Increased for better readability */
+    font-weight: 500; /* Medium weight for emphasis */
+    border: 2px dashed #a0aec0;
+    border-radius: 5px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+    width: 100%;
+  }
+  
+  .file-input:hover {
+    border-color: #4299e1;
+  }
+  
+  .upload-btn {
+    padding: 14px 30px; /* Increased padding for larger button */
+    background-color: #4299e1;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1rem; /* Increased font size */
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+  }
+  
+  .upload-btn:hover {
+    background-color: #2b6cb0;
+    transform: scale(1.02);
+  }
+  
+  .upload-btn:active {
+    transform: scale(0.98);
+  }
+  
+  .file-list {
+    margin-top: 30px;
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 1000px;
+  }
+  
+  .file-list-title {
+    font-size: 1.5rem; /* Increased for better hierarchy */
+    font-weight: 600; /* Added weight for emphasis */
+    color: #2d3748;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 8px;
+    text-align: center;
+  }
+  
+  .file-name {
+    font-size: 1.1rem; /* Increased for better readability */
+    font-weight: 500; /* Medium weight for emphasis */
+    color: #4a5568;
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    text-align: left;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .clusters-container,
+    .text-view-container,
+    .upload-container {
+      padding: 20px 10px;
+    }
+  
+    .clusters-container h2,
+    .text-view-container h2,
+    .upload-container h2 {
+      font-size: 2.25rem; /* Adjusted for mobile */
+    }
+  
+    .cluster-section h3 {
+      font-size: 1.75rem; /* Adjusted for mobile */
+    }
+  
+    .text-container {
+      max-width: 100%;
+      max-height: 300px;
+    }
+  
+    .text-container pre {
+      font-size: 14px; /* Slightly smaller for mobile */
+      line-height: 1.6; /* Adjusted for mobile */
+    }
+  
+    .file-link {
+      font-size: 1.1rem; /* Adjusted for mobile */
+    }
+  
+    .summarize-btn,
+    .upload-btn,
+    .text-view-container button {
+      padding: 12px 24px; /* Slightly smaller padding for mobile */
+      font-size: 1rem; /* Adjusted for mobile */
+    }
+  
+    .input-wrapper,
+    .file-list {
+      max-width: 100%;
+    }
+  
+    .file-input {
+      font-size: 1rem; /* Adjusted for mobile */
+    }
+  
+    .file-list-title {
+      font-size: 1.25rem; /* Adjusted for mobile */
+    }
+  
+    .file-name {
+      font-size: 1rem; /* Adjusted for mobile */
+    }
+  
+    .error-message {
+      font-size: 1.1rem; /* Adjusted for mobile */
+    }
+  }

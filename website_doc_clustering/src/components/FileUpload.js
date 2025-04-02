@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import "./style.css";
 
 export default function FileUpload() {
   const [files, setFiles] = useState([]);
+  const navigate = useNavigate();
 
-  // Handle file selection
   const handleFileChange = (event) => {
     const selectedFiles = Array.from(event.target.files);
     setFiles(selectedFiles);
   };
 
-  // Handle file upload to backend
   const handleUpload = async () => {
     if (files.length === 0) {
       alert("Please select files to upload.");
@@ -27,12 +28,14 @@ export default function FileUpload() {
       });
 
       if (response.ok) {
-        alert("Files uploaded successfully!");
+        alert("Files uploaded and clustered successfully!");
+        navigate("/clusters");
       } else {
         alert("Failed to upload files.");
       }
     } catch (error) {
       console.error("Error uploading files:", error);
+      alert("An error occurred. Please try again.");
     }
   };
 

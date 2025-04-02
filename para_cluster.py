@@ -4,7 +4,6 @@ import fitz  # PyMuPDF
 import numpy as np
 import re  # For text cleaning
 from sentence_transformers import SentenceTransformer
-from sklearn.cluster import DBSCAN
 import hdbscan
 from scipy.spatial.distance import pdist, squareform
 
@@ -33,117 +32,121 @@ def extract_text_from_pdf(pdf_path):
             print(f"⚠️ Error extracting text from {pdf_path}: {e}")
     return text.strip()
 
-# Load PDFs
-folder_path = r"D:\Document_clustering_and_summarization_website\clustered_docs\obstacle_crossref_pp_drone_cid"
+# Load PDFs from the provided folder path
+def process_folder(folder_path):
+    if not os.path.exists(folder_path):
+        print("❌ Folder path does not exist!")
+        sys.exit(1)
 
-if not os.path.exists(folder_path):
-    print("❌ Folder path does not exist!")
-    sys.exit()
+    pdf_files = [f for f in os.listdir(folder_path) if f.lower().endswith(".pdf")]
+    if not pdf_files:
+        print("❌ No PDF files found!")
+        sys.exit(1)
 
-pdf_files = [f for f in os.listdir(folder_path) if f.lower().endswith(".pdf")]
-if not pdf_files:
-    print("❌ No PDF files found!")
-    sys.exit()
+    print(f"✅ Found {len(pdf_files)} PDFs:", pdf_files)
 
-print(f"✅ Found {len(pdf_files)} PDFs:", pdf_files)
+    paragraphs = []
+    document_map = {}
 
-paragraphs = []
-document_map = {}
+    for filename in pdf_files:
+        pdf_path = os.path.join(folder_path, filename)
+        pdf_text = extract_text_from_pdf(pdf_path)
+        if not pdf_text:
+            print(f"⚠️ No text extracted from {filename}. It might be scanned.")
+            continue
+        extracted_paragraphs = [p for p in pdf_text.split("\n\n") if len(p) > 30]
+        if extracted_paragraphs:
+            print(f"📄 Extracted {len(extracted_paragraphs)} paragraphs from {filename}")
+        else:
+            print(f"⚠️ No meaningful text found in {filename}")
+        paragraphs.extend(extracted_paragraphs)
+        for p in extracted_paragraphs:
+            document_map[p] = filename
 
-for filename in pdf_files:
-    pdf_path = os.path.join(folder_path, filename)
-    pdf_text = extract_text_from_pdf(pdf_path)
-    if not pdf_text:
-        print(f"⚠️ No text extracted from {filename}. It might be scanned.")
-        continue
-    extracted_paragraphs = [p for p in pdf_text.split("\n\n") if len(p) > 30]
-    if extracted_paragraphs:
-        print(f"📄 Extracted {len(extracted_paragraphs)} paragraphs from {filename}")
-    else:
-        print(f"⚠️ No meaningful text found in {filename}")
-    paragraphs.extend(extracted_paragraphs)
-    for p in extracted_paragraphs:
-        document_map[p] = filename
+    if not paragraphs:
+        print("❌ No paragraphs extracted!")
+        sys.exit(1)
 
-if not paragraphs:
-    print("❌ No paragraphs extracted!")
-    sys.exit()
+    print(f"✅ Total paragraphs extracted: {len(paragraphs)}")
+    print(f"🔹 Sample paragraph:\n{paragraphs[0][:300]}")
 
-print(f"✅ Total paragraphs extracted: {len(paragraphs)}")
-print(f"🔹 Sample paragraph:\n{paragraphs[0][:300]}")
+    # Convert paragraphs to embeddings
+    embeddings = model.encode(paragraphs)
+    if embeddings.shape[0] == 0:
+        print("❌ No embeddings were generated!")
+        sys.exit(1)
 
-# Convert paragraphs to embeddings
-embeddings = model.encode(paragraphs)
-if embeddings.shape[0] == 0:
-    print("❌ No embeddings were generated!")
-    sys.exit()
+    print(f"✅ Embeddings shape: {embeddings.shape}")
 
-print(f"✅ Embeddings shape: {embeddings.shape}")
+    # Apply HDBSCAN Clustering
+    cosine_distance_matrix = squareform(pdist(embeddings, metric="cosine"))
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=5, metric="precomputed")
+    clusters = clusterer.fit_predict(cosine_distance_matrix)
 
-# Apply HDBSCAN Clustering
-cosine_distance_matrix = squareform(pdist(embeddings, metric="cosine"))
-clusterer = hdbscan.HDBSCAN(min_cluster_size=5, metric="precomputed")
-clusters = clusterer.fit_predict(cosine_distance_matrix)
+    unique_clusters = set(clusters)
+    num_noise = sum(1 for c in clusters if c == -1)
+    print(f"✅ Clusters found: {unique_clusters}")
+    print(f"🔹 Noise points: {num_noise} ({(num_noise / len(clusters)) * 100:.2f}%)")
+    print(f"🔹 First 10 cluster labels: {clusters[:10]}")
 
-unique_clusters = set(clusters)
-num_noise = sum(1 for c in clusters if c == -1)
-print(f"✅ Clusters found: {unique_clusters}")
-print(f"🔹 Noise points: {num_noise} ({(num_noise / len(clusters)) * 100:.2f}%)")
-print(f"🔹 First 10 cluster labels: {clusters[:10]}")
+    # Store Clustered Paragraphs
+    clustered_paragraphs = {}
+    for i, cluster_id in enumerate(clusters):
+        if cluster_id not in clustered_paragraphs:
+            clustered_paragraphs[cluster_id] = []
+        clustered_paragraphs[cluster_id].append((paragraphs[i], document_map[paragraphs[i]]))
 
-# Store Clustered Paragraphs
-clustered_paragraphs = {}
-for i, cluster_id in enumerate(clusters):
-    if cluster_id not in clustered_paragraphs:
-        clustered_paragraphs[cluster_id] = []
-    clustered_paragraphs[cluster_id].append((paragraphs[i], document_map[paragraphs[i]]))
+    if not clustered_paragraphs:
+        print("❌ No clusters formed.")
+        sys.exit(1)
 
-if not clustered_paragraphs:
-    print("❌ No clusters formed.")
-    sys.exit()
+    # Organize paragraphs by document for similarities and differences
+    similarities_by_doc = {}
+    differences_by_doc = {}
 
-# Organize paragraphs by document for similarities and differences
-# Organize paragraphs by document for similarities and differences
-similarities_by_doc = {}
-differences_by_doc = {}
+    for cluster_id, para_list in clustered_paragraphs.items():
+        if cluster_id != -1:  # Exclude outliers
+            for para, doc in para_list:
+                if doc not in similarities_by_doc:
+                    similarities_by_doc[doc] = []
+                similarities_by_doc[doc].append(para)
+        else:  # Outliers go to differences
+            for para, doc in para_list:
+                if doc not in differences_by_doc:
+                    differences_by_doc[doc] = []
+                differences_by_doc[doc].append(para)
 
-for cluster_id, para_list in clustered_paragraphs.items():
-    if cluster_id != -1:  # Exclude outliers
-        for para, doc in para_list:
-            if doc not in similarities_by_doc:
-                similarities_by_doc[doc] = []
-            similarities_by_doc[doc].append(para)  # Store paragraph without cluster ID
-    else:  # Outliers go to differences
-        for para, doc in para_list:
-            if doc not in differences_by_doc:
-                differences_by_doc[doc] = []
-            differences_by_doc[doc].append(para)
+    # Write similarities to similarities.txt in the folder
+    with open(os.path.join(folder_path, "similarities.txt"), "w", encoding="utf-8") as sim_file:
+        sim_file.write("Similarities Across Documents\n")
+        sim_file.write("=" * 50 + "\n\n")
+        for doc, para_list in similarities_by_doc.items():
+            sim_file.write(f"Document: {doc}\n")
+            sim_file.write("-" * 50 + "\n")
+            sim_file.write("Similar Paragraphs:\n")
+            for para in para_list:
+                sim_file.write(f"{para}\n\n")
+            sim_file.write("\n")
 
-# Write similarities to similarities.txt
-with open("clustered_docs\obstacle_crossref_pp_drone_cid\similarities.txt", "w", encoding="utf-8") as sim_file:
-    sim_file.write("Similarities Across Documents\n")
-    sim_file.write("=" * 50 + "\n\n")
+    # Write differences to differences.txt in the folder
+    with open(os.path.join(folder_path, "differences.txt"), "w", encoding="utf-8") as diff_file:
+        diff_file.write("Differences (Outliers) Across Documents\n")
+        diff_file.write("=" * 50 + "\n\n")
+        for doc, para_list in differences_by_doc.items():
+            diff_file.write(f"Document: {doc}\n")
+            diff_file.write("-" * 50 + "\n")
+            diff_file.write("Outlier Paragraphs:\n")
+            for para in para_list:
+                diff_file.write(f"{para}\n\n")
+            diff_file.write("\n")
+
+    print("✅ Results written to similarities.txt and differences.txt in", folder_path)
+    print("✅ Clustering complete!")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python para_cluster.py <folder_path>")
+        sys.exit(1)
     
-    for doc, para_list in similarities_by_doc.items():
-        sim_file.write(f"Document: {doc}\n")
-        sim_file.write("-" * 50 + "\n")
-        sim_file.write("Similar Paragraphs:\n")
-        for para in para_list:
-            sim_file.write(f"{para}\n\n")
-        sim_file.write("\n")
-
-# Write differences to differences.txt
-with open("clustered_docs\obstacle_crossref_pp_drone_cid\differences.txt", "w", encoding="utf-8") as diff_file:
-    diff_file.write("Differences Across Documents\n")
-    diff_file.write("=" * 50 + "\n\n")
-    
-    for doc, para_list in differences_by_doc.items():
-        diff_file.write(f"Document: {doc}\n")
-        diff_file.write("-" * 50 + "\n")
-        diff_file.write("Outlier Paragraphs:\n")
-        for para in para_list:
-            diff_file.write(f"{para}\n\n")
-        diff_file.write("\n")
-
-print("✅ Results written to similarities.txt and differences.txt")
-print("✅ Clustering complete!")
+    folder_path = sys.argv[1]
+    process_folder(folder_path)

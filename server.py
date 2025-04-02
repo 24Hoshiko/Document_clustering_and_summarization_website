@@ -2,30 +2,15 @@ import uvicorn
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import os
-
-app = FastAPI()
-
-# Enable CORS for frontend communication
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Change this to a specific frontend domain in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-import uvicorn
-from fastapi import FastAPI, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-import os
 import shutil
 import subprocess
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
-# Enable CORS for frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this to a specific frontend domain in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,70 +19,73 @@ app.add_middleware(
 UPLOAD_FOLDER = "uploaded_docs"
 CLUSTERED_FOLDER = "clustered_docs"
 
-# Ensure required folders exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(CLUSTERED_FOLDER, exist_ok=True)
 
+# Flag to prevent multiple clustering runs
+is_clustering = False
+
 @app.post("/upload/")
 async def upload_files(files: list[UploadFile]):
-    """Handles file uploads and triggers document clustering."""
-    
-    uploaded_filenames = []
-    
-    for file in files:
-        # Extract only the filename without directory structure
-        safe_filename = os.path.basename(file.filename)  
-        file_path = os.path.join(UPLOAD_FOLDER, safe_filename)
+    global is_clustering
+    if is_clustering:
+        return {"message": "Clustering is already in progress. Please wait."}
 
-        # Save the file
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        uploaded_filenames.append(safe_filename)
-
-    # Run document clustering after upload
+    is_clustering = True
     try:
-        subprocess.run(["python", "document_clustering.py"], check=True)
+        uploaded_filenames = []
+        shutil.rmtree(UPLOAD_FOLDER, ignore_errors=True)
+        shutil.rmtree(CLUSTERED_FOLDER, ignore_errors=True)
+        os.makedirs(UPLOAD_FOLDER)
+        os.makedirs(CLUSTERED_FOLDER)
+
+        for file in files:
+            safe_filename = os.path.basename(file.filename)
+            file_path = os.path.join(UPLOAD_FOLDER, safe_filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            uploaded_filenames.append(safe_filename)
+
+        # Run clustering
+        subprocess.run(["python", "text_processing.py"], check=True)
+        return {"message": "Files uploaded and clustered successfully!", "processed_files": uploaded_filenames}
     except subprocess.CalledProcessError as e:
         return {"message": "Files uploaded, but clustering failed!", "error": str(e)}
-
-    return {"message": "Files uploaded and clustered successfully!", "processed_files": uploaded_filenames}
-
+    finally:
+        is_clustering = False
 
 @app.get("/clusters/")
 async def get_clustered_documents():
-    """Retrieve clustered document categories and filenames."""
-    
     clustered_data = {}
-    
     for category in os.listdir(CLUSTERED_FOLDER):
         category_path = os.path.join(CLUSTERED_FOLDER, category)
-        
-        if os.path.isdir(category_path):  # Ensure it's a folder
-            clustered_data[category] = os.listdir(category_path)
-
+        if os.path.isdir(category_path):
+            files = os.listdir(category_path)
+            clustered_data[category] = {
+                "files": files,
+                "summaries": [f for f in files if f in ["similarities.txt", "differences.txt"]]
+            }
     return {"clusters": clustered_data}
 
+@app.get("/file/{category}/{filename}")
+async def get_file(category: str, filename: str):
+    file_path = os.path.join(CLUSTERED_FOLDER, category, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return {"error": "File not found"}
+
+@app.post("/summarize/{category}")
+async def summarize_cluster(category: str):
+    cluster_path = os.path.join(CLUSTERED_FOLDER, category)
+    if not os.path.exists(cluster_path):
+        return {"error": "Cluster not found"}
+
+    try:
+        subprocess.run(["python", "para_cluster.py", cluster_path], check=True)
+    except subprocess.CalledProcessError as e:
+        return {"error": f"Summarization failed: {str(e)}"}
+
+    return {"message": f"Summaries generated for {category}"}
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
-
-UPLOAD_FOLDER = "uploaded_docs"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-@app.post("/upload/")
-async def upload_files(files: list[UploadFile]):
-    for file in files:
-        safe_filename = file.filename.replace("\\", "/")
-        file_path = os.path.join(UPLOAD_FOLDER, safe_filename)
-
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-        with open(file_path, "wb") as buffer:
-            buffer.write(await file.read())
-
-    return {"message": "Files uploaded successfully!"}
-
-# ✅ Correct way to run directly
-if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=False)
