@@ -28,7 +28,7 @@ export default function TextView() {
 
   return (
     <div className="text-view-container">
-      <h2>{filename}</h2>
+      <h2>SUMMARY.TXT</h2>
       {error ? (
         <p className="error-message">{error}</p>
       ) : (

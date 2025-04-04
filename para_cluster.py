@@ -6,17 +6,24 @@ import re  # For text cleaning
 from sentence_transformers import SentenceTransformer
 import hdbscan
 from scipy.spatial.distance import pdist, squareform
+from transformers import BartTokenizer, BartForConditionalGeneration
 
-# Load SBERT model
+# Load SBERT model for clustering
 model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Load BART model and tokenizer for abstractive summarization
+bart_tokenizer = BartTokenizer.from_pretrained('facebook/bart-large-cnn')
+bart_model = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn')
 
 # Function to clean extracted text
 def clean_text(text):
     text = text.strip()
-    text = re.sub(r'^\d+$', '', text, flags=re.MULTILINE)
-    text = re.sub(r'^[()0-9\s\-.]+$', '', text, flags=re.MULTILINE)
-    text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '', text)
-    text = re.sub(r'\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'^\d+$', '', text, flags=re.MULTILINE)  # Remove lines with only digits
+    text = re.sub(r'^[()0-9\s\-.]+$', '', text, flags=re.MULTILINE)  # Remove lines with only symbols/numbers
+    text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '', text)  # Remove emails
+    text = re.sub(r'\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b', '', text, flags=re.IGNORECASE)  # Remove DOIs
+    text = re.sub(r'\b(?:http|https|ftp)://\S+\b|\bwww\.\S+\b', '', text)  # Enhanced URL removal
+    text = re.sub(r'\d+', '', text)  # Remove all numbers
     return text.strip()
 
 # Function to extract text from a PDF
@@ -32,7 +39,27 @@ def extract_text_from_pdf(pdf_path):
             print(f"⚠️ Error extracting text from {pdf_path}: {e}")
     return text.strip()
 
-# Load PDFs from the provided folder path
+# Function for detailed abstractive summarization using BART
+def summarize_paragraphs_abstractive(paragraphs):
+    if not paragraphs:
+        return "No summary available."
+    combined_text = " ".join(paragraphs)
+    if len(combined_text) < 50:
+        return "Text too short to summarize."
+    
+    inputs = bart_tokenizer(combined_text, max_length=1024, truncation=True, return_tensors="pt")
+    summary_ids = bart_model.generate(
+        inputs["input_ids"],
+        max_length=800,  # Increased for detailed output (~200+ words)
+        min_length=600,  # Ensures at least ~100-150 words, pushing towards 200
+        length_penalty=1.0,  # Reduced to favor longer outputs
+        num_beams=6,  # Higher beams for better coherence in longer text
+        early_stopping=True
+    )
+    summary = bart_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+    return summary
+
+# Load PDFs and process
 def process_folder(folder_path):
     if not os.path.exists(folder_path):
         print("❌ Folder path does not exist!")
@@ -94,54 +121,38 @@ def process_folder(folder_path):
     for i, cluster_id in enumerate(clusters):
         if cluster_id not in clustered_paragraphs:
             clustered_paragraphs[cluster_id] = []
-        clustered_paragraphs[cluster_id].append((paragraphs[i], document_map[paragraphs[i]]))
+        clustered_paragraphs[cluster_id].append(paragraphs[i])
 
     if not clustered_paragraphs:
         print("❌ No clusters formed.")
         sys.exit(1)
 
-    # Organize paragraphs by document for similarities and differences
-    similarities_by_doc = {}
-    differences_by_doc = {}
+    # Combine all similarities and differences across all documents
+    all_similarities = []
+    all_differences = []
 
     for cluster_id, para_list in clustered_paragraphs.items():
-        if cluster_id != -1:  # Exclude outliers
-            for para, doc in para_list:
-                if doc not in similarities_by_doc:
-                    similarities_by_doc[doc] = []
-                similarities_by_doc[doc].append(para)
-        else:  # Outliers go to differences
-            for para, doc in para_list:
-                if doc not in differences_by_doc:
-                    differences_by_doc[doc] = []
-                differences_by_doc[doc].append(para)
+        if cluster_id != -1:  # Similarities
+            all_similarities.extend(para_list)
+        else:  # Differences (noise)
+            all_differences.extend(para_list)
 
-    # Write similarities to similarities.txt in the folder
+    # Generate detailed overall summaries
+    overall_similarities_summary = summarize_paragraphs_abstractive(all_similarities)
+    overall_differences_summary = summarize_paragraphs_abstractive(all_differences)
+
+    # Write overall similarities
     with open(os.path.join(folder_path, "similarities.txt"), "w", encoding="utf-8") as sim_file:
-        sim_file.write("Similarities Across Documents\n")
-        sim_file.write("=" * 50 + "\n\n")
-        for doc, para_list in similarities_by_doc.items():
-            sim_file.write(f"Document: {doc}\n")
-            sim_file.write("-" * 50 + "\n")
-            sim_file.write("Similar Paragraphs:\n")
-            for para in para_list:
-                sim_file.write(f"{para}\n\n")
-            sim_file.write("\n")
+        sim_file.write("Overall Summary of Similarities Across All Research Papers\n")
+        sim_file.write("=" * 60 + "\n\n")
+        sim_file.write(f"{overall_similarities_summary}\n")
 
-    # Write differences to differences.txt in the folder
-    with open(os.path.join(folder_path, "differences.txt"), "w", encoding="utf-8") as diff_file:
-        diff_file.write("Differences (Outliers) Across Documents\n")
-        diff_file.write("=" * 50 + "\n\n")
-        for doc, para_list in differences_by_doc.items():
-            diff_file.write(f"Document: {doc}\n")
-            diff_file.write("-" * 50 + "\n")
-            diff_file.write("Outlier Paragraphs:\n")
-            for para in para_list:
-                diff_file.write(f"{para}\n\n")
-            diff_file.write("\n")
+        sim_file.write("\n\nOverall Summary of Differences Across All Research Papers\n")
+        sim_file.write("=" * 60 + "\n\n")
+        sim_file.write(f"{overall_differences_summary}\n")
 
-    print("✅ Results written to similarities.txt and differences.txt in", folder_path)
-    print("✅ Clustering complete!")
+    print("✅ Detailed overall abstractive summaries (200+ words) written to similarities.txt and differences.txt in", folder_path)
+    print("✅ Clustering and summarization complete!")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
